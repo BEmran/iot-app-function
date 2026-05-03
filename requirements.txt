@@ -1,0 +1,5 @@
+azure-functions==1.24.0
+pymssql==2.3.2
+requests==2.32.3
+azure-iot-hub
+azure-storage-blob
