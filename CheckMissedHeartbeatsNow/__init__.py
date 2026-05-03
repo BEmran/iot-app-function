@@ -20,7 +20,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         dry_run = req.params.get("dryRun", "false").lower() == "true"
 
         conn = get_sql_connection()
-        cursor = conn.cursor(as_dict=True)
+        cursor = conn.cursor()
 
         # Devices table is kept as the source of configured devices.
         # Last heartbeat is taken from HeartbeatEvents.
@@ -54,8 +54,8 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         details = []
 
         for d in devices:
-            device_id = d["DeviceId"]
-            last_hb = d["LastHeartbeatUtc"]
+            device_id = d[0]
+            last_hb = d[1]
 
             # SQL-side current UTC and threshold decision keeps timing consistent.
             cursor.execute("""
@@ -64,8 +64,8 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                     DATEADD(minute, -%s, SYSUTCDATETIME()) AS ThresholdUtc
             """, (threshold_minutes,))
             t = cursor.fetchone()
-            now_utc = t["NowUtc"]
-            threshold_utc = t["ThresholdUtc"]
+            now_utc = t[0]
+            threshold_utc = t[1]
 
             is_missing = (last_hb is None) or (last_hb < threshold_utc)
 
