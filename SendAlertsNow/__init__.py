@@ -2,7 +2,7 @@ import json
 import os
 import azure.functions as func
 
-from shared_code.iot_logic import get_sql_connection, send_email
+from shared_code.iot_logic import get_sql_connection, send_graph_email
 
 
 def _to_bool(value: str) -> bool:
@@ -117,7 +117,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 continue
 
             try:
-                send_email(alert_to, subject, body)
+                send_graph_email(alert_to, subject, body)
 
                 cursor.execute("""
                     UPDATE dbo.Incidents
@@ -216,7 +216,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 continue
 
             try:
-                send_email(alert_to, subject, body)
+                send_graph_email(alert_to, subject, body)
 
                 cursor.execute("""
                     UPDATE dbo.Incidents
