@@ -122,9 +122,9 @@ def process_prefix(container_client, cursor, prefix, blob_type, insert_func, lim
     blobs = list_recent_blobs(container_client, prefix)
 
     for blob_name in blobs[:limit]:
-        if blob_already_processed(cursor, blob_name):
-            skipped_blobs += 1
-            continue
+        # if blob_already_processed(cursor, blob_name):
+        #     skipped_blobs += 1
+        #     continue
 
         blob_client = container_client.get_blob_client(blob_name)
         text = blob_client.download_blob().readall().decode("utf-8")
@@ -134,7 +134,7 @@ def process_prefix(container_client, cursor, prefix, blob_type, insert_func, lim
             insert_func(cursor, row)
             count += 1
 
-        mark_blob_processed(cursor, blob_name, count, blob_type)
+        # mark_blob_processed(cursor, blob_name, count, blob_type)
 
         processed_blobs += 1
         processed_records += count
