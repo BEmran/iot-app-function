@@ -3,3 +3,4 @@ pymssql==2.3.2
 requests==2.32.3
 azure-iot-hub
 azure-storage-blob
+certifi
