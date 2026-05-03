@@ -34,15 +34,16 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             mimetype="application/json"
         )
 
-    conn = get_sql_connection()
-    cursor = conn.cursor()
-
     sent = 0
     failed = 0
     dry_run_count = 0
     details = []
+    conn = None
+    cursor = None
 
     try:
+        conn = get_sql_connection()
+        cursor = conn.cursor()
         # -------------------------
         # Open incident alerts
         # -------------------------
@@ -271,5 +272,13 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         )
 
     finally:
-        cursor.close()
-        conn.close()
+        try:
+            if cursor:
+                cursor.close()
+        except Exception:
+            pass
+        try:
+            if conn:
+                conn.close()
+        except Exception:
+            pass
