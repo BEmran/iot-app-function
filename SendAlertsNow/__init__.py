@@ -2,7 +2,8 @@ import json
 import os
 import azure.functions as func
 
-from shared_code.iot_logic import get_sql_connection, send_graph_email
+from shared_code.iot_logic import get_sql_connection
+from shared_code.graph_email import send_graph_email
 
 
 def _to_bool(value: str) -> bool:
