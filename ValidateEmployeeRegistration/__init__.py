@@ -201,7 +201,7 @@ DECLARE @QueueId BIGINT;
 SELECT TOP (1)
     @QueueId = QueueId
 FROM TAIoT.dbo.EmployeeRegistrationAlertQueue
-WHERE QueueStatus IN ('PENDING', 'FAILED')
+WHERE QueueStatus = 'PENDING'
   AND AttemptCount < 5
 ORDER BY CreatedUtc ASC, QueueId ASC;
 
