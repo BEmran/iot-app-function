@@ -61,7 +61,43 @@ def get_operational_dashboard_data():
             ORDER BY SummaryId
         """)
         summary = [row_to_dict(cursor, row) for row in cursor.fetchall()]
+        summary_tiles = []
 
+        if summary:
+            s = summary[0]
+
+            summary_tiles = [
+                {
+                    "Title": "Total Devices",
+                    "Value": s.get("TotalDevices", 0),
+                    "Status": "Neutral"
+                },
+                {
+                    "Title": "Online",
+                    "Value": s.get("OnlineDevices", 0),
+                    "Status": "Healthy"
+                },
+                {
+                    "Title": "Offline",
+                    "Value": s.get("SlaveOfflineDevices", 0),
+                    "Status": "Healthy"
+                },
+                {
+                    "Title": "Down",
+                    "Value": s.get("SlaveDownDevices", 0),
+                    "Status": "Healthy"
+                },
+                {
+                    "Title": "Disconnected",
+                    "Value": s.get("DisconnectedDevices", 0),
+                    "Status": "Critical" if s.get("DisconnectedDevices", 0) > 0 else "Healthy"
+                },
+                {
+                    "Title": "Open Incidents",
+                    "Value": s.get("TotalOpenIncidents", 0),
+                    "Status": "Critical" if s.get("TotalOpenIncidents", 0) > 0 else "Healthy"
+                },
+            ]
         cursor.execute("""
             SELECT
                 DeviceId,
