@@ -28,20 +28,19 @@ USING (
             ELSE 'INVALID'
         END AS ValidationStatus,
 
-        NULLIF(CONCAT(
-            CASE WHEN X.Check8Digits = 0
-                 THEN 'ID is not exactly 8 digits; '
-                 ELSE ''
-            END,
-            CASE WHEN X.CheckAllowedPattern = 0
-                 THEN 'ID does not match allowed patterns 650xxxxx, 655xxxxx, or 250xxxxx; '
-                 ELSE ''
-            END,
-            CASE WHEN X.CheckExistsInWFPro = 0
-                 THEN 'ID does not exist in WFPro_MSY.dbo.M04T009; '
-                 ELSE ''
-            END
-        ), '') AS FailedChecks
+        CASE
+            WHEN LEN(X.EmpId) <> 8
+            OR X.EmpId LIKE '%[^0-9]%'
+                THEN 'ID is not exactly 8 digits.'
+
+            WHEN X.CheckAllowedPattern = 0
+                THEN 'ID does not match allowed patterns.'
+
+            WHEN X.CheckExistsInWFPro = 0
+                THEN 'ID was not found in the official employee directory.'
+
+            ELSE NULL
+        END AS FailedChecks
 
     FROM (
         SELECT
@@ -297,13 +296,16 @@ def fetch_one_dict(cursor):
 def build_email(emp_id, failed_checks, queue_id, validation_id):
     emp_id_safe = html.escape(str(emp_id))
     failed_checks_safe = html.escape(str(failed_checks or ""))
-    checked_utc = datetime.datetime.utcnow().isoformat() + "Z"
+
+    ast_time = datetime.datetime.now(
+        datetime.timezone(datetime.timedelta(hours=3))
+    ).strftime("%Y-%m-%d %H:%M:%S AST")
 
     subject = f"Invalid NewBluebird Employee Registration - Emp ID {emp_id_safe}"
 
     body = f"""
 <html>
-<body>
+<body style="font-family: Arial, sans-serif; font-size: 14px; color: #222;">
     <p>Dear Team,</p>
 
     <p>
@@ -311,40 +313,53 @@ def build_email(emp_id, failed_checks, queue_id, validation_id):
         in the NewBluebird employee master table.
     </p>
 
-    <table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse;">
-        <tr>
-            <td><b>Employee ID</b></td>
+    <table border="1" cellpadding="8" cellspacing="0"
+           style="border-collapse: collapse; border: 1px solid #999; width: 100%; max-width: 850px;">
+
+        <tr style="background-color: #f8d7da;">
+            <td style="font-weight: bold; width: 220px;">Employee ID</td>
             <td>{emp_id_safe}</td>
         </tr>
-        <tr>
-            <td><b>Source</b></td>
-            <td>NewBluebird.dbo.M04T009.M04T009C007</td>
+
+        <tr style="background-color: #fff3cd;">
+            <td style="font-weight: bold;">Validation Status</td>
+            <td style="font-weight: bold; color: #842029;">INVALID</td>
         </tr>
-        <tr>
-            <td><b>Reference Check</b></td>
-            <td>WFPro_MSY.dbo.M04T009.M04T009C007</td>
-        </tr>
-        <tr>
-            <td><b>Failed Checks</b></td>
+
+        <tr style="background-color: #f8d7da;">
+            <td style="font-weight: bold;">Main Validation Error</td>
             <td>{failed_checks_safe}</td>
         </tr>
-        <tr>
-            <td><b>Validation Queue ID</b></td>
+
+        <tr style="background-color: #e2e3e5;">
+            <td style="font-weight: bold;">Source</td>
+            <td>NewBluebird.dbo.M04T009.M04T009C007</td>
+        </tr>
+
+        <tr style="background-color: #e2e3e5;">
+            <td style="font-weight: bold;">Official Directory Check</td>
+            <td>WFPro_MSY.dbo.M04T009.M04T009C007</td>
+        </tr>
+
+        <tr style="background-color: #d1ecf1;">
+            <td style="font-weight: bold;">Validation Queue ID</td>
             <td>{queue_id}</td>
         </tr>
-        <tr>
-            <td><b>Validation ID</b></td>
+
+        <tr style="background-color: #d1ecf1;">
+            <td style="font-weight: bold;">Validation ID</td>
             <td>{validation_id}</td>
         </tr>
-        <tr>
-            <td><b>Checked UTC</b></td>
-            <td>{checked_utc}</td>
+
+        <tr style="background-color: #d1ecf1;">
+            <td style="font-weight: bold;">Checked Time</td>
+            <td>{ast_time}</td>
         </tr>
     </table>
 
-    <p>
-        Required action: please verify whether this employee ID should exist
-        in the official WFPro_MSY employee master before allowing it to remain
+    <p style="margin-top: 16px;">
+        <b>Required action:</b> please verify whether this employee ID should exist
+        in the official WFPro_MSY employee directory before allowing it to remain
         active in NewBluebird.
     </p>
 
