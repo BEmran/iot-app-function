@@ -5,8 +5,8 @@ import html
 
 import azure.functions as func
 
-from shared_code.iot_logic import get_sql_connection, send_email
-
+from shared_code.iot_logic import get_sql_connection
+from shared_code.graph_email import send_graph_email
 
 MAX_EMAILS_PER_CALL = 1
 
@@ -380,7 +380,7 @@ def process_one_email(cursor, conn, to_address):
     )
 
     try:
-        send_email(to_address, subject, body)
+        send_graph_email(to_address, subject, body)
 
         cursor.execute(
             MARK_QUEUE_SENT_SQL,
