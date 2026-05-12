@@ -14,13 +14,36 @@ MAX_EMAILS_PER_CALL = 1
 MERGE_VALIDATION_SQL = """
 MERGE TAIoT.dbo.EmployeeRegistrationValidation AS Target
 USING (
-    WITH SourceEmployees AS (
-        SELECT
-            LTRIM(RTRIM(CAST(NB.M04T009C007 AS NVARCHAR(50)))) AS EmpId
-        FROM NewBluebird.dbo.M04T009 AS NB
-        WHERE NB.M04T009C007 IS NOT NULL
-    ),
-    ValidatedEmployees AS (
+    SELECT
+        X.EmpId,
+        X.Check8Digits,
+        X.CheckAllowedPattern,
+        X.CheckExistsInWFPro,
+
+        CASE
+            WHEN X.Check8Digits = 1
+             AND X.CheckAllowedPattern = 1
+             AND X.CheckExistsInWFPro = 1
+            THEN 'VALID'
+            ELSE 'INVALID'
+        END AS ValidationStatus,
+
+        NULLIF(CONCAT(
+            CASE WHEN X.Check8Digits = 0
+                 THEN 'ID is not exactly 8 digits; '
+                 ELSE ''
+            END,
+            CASE WHEN X.CheckAllowedPattern = 0
+                 THEN 'ID does not match allowed patterns 650xxxxx, 655xxxxx, or 250xxxxx; '
+                 ELSE ''
+            END,
+            CASE WHEN X.CheckExistsInWFPro = 0
+                 THEN 'ID does not exist in WFPro_MSY.dbo.M04T009; '
+                 ELSE ''
+            END
+        ), '') AS FailedChecks
+
+    FROM (
         SELECT
             S.EmpId,
 
@@ -45,39 +68,15 @@ USING (
                 ELSE CAST(0 AS BIT)
             END AS CheckExistsInWFPro
 
-        FROM SourceEmployees AS S
+        FROM (
+            SELECT DISTINCT
+                LTRIM(RTRIM(CAST(NB.M04T009C007 AS NVARCHAR(50)))) AS EmpId
+            FROM NewBluebird.dbo.M04T009 AS NB
+            WHERE NB.M04T009C007 IS NOT NULL
+        ) AS S
         LEFT JOIN WFPro_MSY.dbo.M04T009 AS MSY
             ON S.EmpId = LTRIM(RTRIM(CAST(MSY.M04T009C007 AS NVARCHAR(50))))
-    )
-    SELECT
-        EmpId,
-        Check8Digits,
-        CheckAllowedPattern,
-        CheckExistsInWFPro,
-
-        CASE
-            WHEN Check8Digits = 1
-             AND CheckAllowedPattern = 1
-             AND CheckExistsInWFPro = 1
-            THEN 'VALID'
-            ELSE 'INVALID'
-        END AS ValidationStatus,
-
-        NULLIF(CONCAT(
-            CASE WHEN Check8Digits = 0
-                 THEN 'ID is not exactly 8 digits; '
-                 ELSE ''
-            END,
-            CASE WHEN CheckAllowedPattern = 0
-                 THEN 'ID does not match allowed patterns 650xxxxx, 655xxxxx, or 250xxxxx; '
-                 ELSE ''
-            END,
-            CASE WHEN CheckExistsInWFPro = 0
-                 THEN 'ID does not exist in WFPro_MSY.dbo.M04T009; '
-                 ELSE ''
-            END
-        ), '') AS FailedChecks
-    FROM ValidatedEmployees
+    ) AS X
 ) AS Source
 ON Target.EmpId = Source.EmpId
 
