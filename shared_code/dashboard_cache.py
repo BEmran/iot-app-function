@@ -207,6 +207,7 @@ def get_operational_dashboard_data():
         return {
             "status": "ok",
             "summary": summary,
+            "summaryTiles": summary_tiles,
             "devices": devices,
             "openIncidents": open_incidents,
             "staleHeartbeats": stale_heartbeats
