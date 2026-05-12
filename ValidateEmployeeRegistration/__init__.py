@@ -196,28 +196,30 @@ WHERE V.ValidationStatus = 'INVALID'
 
 
 PICK_ONE_QUEUE_ITEM_SQL = """
-;WITH Picked AS (
-    SELECT TOP (1)
-        QueueId,
-        ValidationId,
-        EmpId,
-        FailedChecks
-    FROM TAIoT.dbo.EmployeeRegistrationAlertQueue WITH (UPDLOCK, READPAST, ROWLOCK)
-    WHERE QueueStatus IN ('PENDING', 'FAILED')
-      AND AttemptCount < 5
-    ORDER BY CreatedUtc ASC, QueueId ASC
-)
-UPDATE Picked
-SET
-    QueueStatus = 'PROCESSING',
-    AttemptCount = AttemptCount + 1,
-    LastAttemptUtc = SYSUTCDATETIME(),
-    ErrorMessage = NULL
-OUTPUT
-    inserted.QueueId,
-    inserted.ValidationId,
-    inserted.EmpId,
-    inserted.FailedChecks;
+DECLARE @QueueId BIGINT;
+
+SELECT TOP (1)
+    @QueueId = QueueId
+FROM TAIoT.dbo.EmployeeRegistrationAlertQueue
+WHERE QueueStatus IN ('PENDING', 'FAILED')
+  AND AttemptCount < 5
+ORDER BY CreatedUtc ASC, QueueId ASC;
+
+IF @QueueId IS NOT NULL
+BEGIN
+    UPDATE TAIoT.dbo.EmployeeRegistrationAlertQueue
+    SET
+        QueueStatus = 'PROCESSING',
+        AttemptCount = AttemptCount + 1,
+        LastAttemptUtc = SYSUTCDATETIME(),
+        ErrorMessage = NULL
+    OUTPUT
+        inserted.QueueId,
+        inserted.ValidationId,
+        inserted.EmpId,
+        inserted.FailedChecks
+    WHERE QueueId = @QueueId;
+END
 """
 
 
