@@ -1,5 +1,6 @@
 import json
 import logging
+import datetime
 import azure.functions as func
 
 from shared_code.iot_logic import get_sql_connection, time
@@ -134,11 +135,9 @@ def row_to_dict(cursor, row):
     for i, col in enumerate(columns):
         value = row[i]
 
-        # Convert SQL datetime values from UTC to AST for API response
-        if isinstance(value, datetime.datetime):
+        if hasattr(value, "isoformat"):
             value = to_ast_string(value)
 
-            # Rename returned field from Utc to Ast
             if col.endswith("Utc"):
                 col = col[:-3] + "Ast"
 
