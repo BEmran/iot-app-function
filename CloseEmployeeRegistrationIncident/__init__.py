@@ -132,9 +132,9 @@ def ast_now_text():
 def build_closure_email(incident, closed_by, closure_notes):
     emp_id = html.escape(str(incident.get("EmpId", "")))
     validation_id = html.escape(str(incident.get("ValidationId", "")))
-    failed_checks = html.escape(str(incident.get("FailedChecks") or ""))
     closed_by_safe = html.escape(str(closed_by or ""))
     notes_safe = html.escape(str(closure_notes or "No notes provided."))
+
     closed_time = ast_now_text()
 
     subject = f"Employee Registration Incident Closed - Emp ID {emp_id}"
@@ -149,34 +149,19 @@ def build_closure_email(incident, closed_by, closure_notes):
     </p>
 
     <table border="1" cellpadding="8" cellspacing="0"
-           style="border-collapse: collapse; border: 1px solid #999; width: 100%; max-width: 850px;">
+           style="border-collapse: collapse; border: 1px solid #999; width: 100%; max-width: 750px;">
 
         <tr style="background-color: #d4edda;">
-            <td style="font-weight: bold; width: 230px;">Incident Status</td>
+            <td style="font-weight: bold; width: 220px;">Incident Status</td>
             <td style="font-weight: bold; color: #155724;">CLOSED</td>
         </tr>
 
-        <tr style="background-color: #f8d7da;">
+        <tr>
             <td style="font-weight: bold;">Employee ID</td>
             <td>{emp_id}</td>
         </tr>
 
-        <tr style="background-color: #fff3cd;">
-            <td style="font-weight: bold;">Original Validation Error</td>
-            <td>{failed_checks}</td>
-        </tr>
-
-        <tr style="background-color: #e2e3e5;">
-            <td style="font-weight: bold;">Source</td>
-            <td>NewBluebird.dbo.M04T009.M04T009C007</td>
-        </tr>
-
-        <tr style="background-color: #e2e3e5;">
-            <td style="font-weight: bold;">Official Directory Check</td>
-            <td>WFPro_MSY.dbo.M04T009.M04T009C007</td>
-        </tr>
-
-        <tr style="background-color: #d1ecf1;">
+        <tr>
             <td style="font-weight: bold;">Validation ID</td>
             <td>{validation_id}</td>
         </tr>
@@ -372,3 +357,4 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             status_code=500,
             mimetype="application/json"
         )
+
