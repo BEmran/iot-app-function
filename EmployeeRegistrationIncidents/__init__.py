@@ -5,7 +5,7 @@ import azure.functions as func
 from shared_code.iot_logic import get_sql_connection
 
 
-BBASE_INCIDENTS_SQL = """
+BASE_INCIDENTS_SQL = """
 SELECT TOP ({limit})
     *
 FROM (
