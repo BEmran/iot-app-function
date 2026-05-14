@@ -5,7 +5,7 @@ import azure.functions as func
 from shared_code.iot_logic import get_sql_connection
 
 
-BASE_INCIDENTS_SQL = """
+BBASE_INCIDENTS_SQL = """
 SELECT TOP ({limit})
     *
 FROM (
@@ -61,16 +61,16 @@ FROM (
             WHEN V.IncidentLifecycleStatus = 'CLOSED' THEN 'CLOSED'
             WHEN V.ValidationStatus = 'VALID' THEN 'RESOLVED'
             WHEN V.ValidationStatus = 'INVALID'
-            AND ISNULL(V.EmailSent, 0) = 1 THEN 'ALERT_SENT'
+             AND ISNULL(V.EmailSent, 0) = 1 THEN 'ALERT_SENT'
             WHEN V.ValidationStatus = 'INVALID'
-            AND Q.QueueStatus = 'PENDING' THEN 'PENDING_EMAIL'
+             AND Q.QueueStatus = 'PENDING' THEN 'PENDING_EMAIL'
             WHEN V.ValidationStatus = 'INVALID'
-            AND Q.QueueStatus = 'FAILED' THEN 'EMAIL_FAILED'
+             AND Q.QueueStatus = 'FAILED' THEN 'EMAIL_FAILED'
             WHEN V.ValidationStatus = 'INVALID'
-            AND Q.QueueStatus = 'PROCESSING' THEN 'PROCESSING_EMAIL'
+             AND Q.QueueStatus = 'PROCESSING' THEN 'PROCESSING_EMAIL'
             WHEN V.ValidationStatus = 'INVALID' THEN 'OPEN'
             ELSE 'UNKNOWN'
-        END AS IncidentStatus
+        END AS IncidentStatus,
 
         CASE
             WHEN V.FailedChecks LIKE '%more than 8 digits%'
