@@ -7,6 +7,7 @@ import azure.functions as func
 
 from shared_code.iot_logic import get_sql_connection
 from shared_code.graph_email import send_graph_email
+from shared_code.time_utils import to_ast_string
 
 
 GET_INCIDENT_BY_VALIDATION_ID_SQL = """
@@ -95,8 +96,15 @@ def row_to_dict(cursor, row):
 
     for i, col in enumerate(columns):
         value = row[i]
-        if hasattr(value, "isoformat"):
-            value = value.isoformat()
+
+        # Convert SQL datetime values from UTC to AST for API response
+        if isinstance(value, datetime.datetime):
+            value = to_ast_string(value)
+
+            # Rename returned field from Utc to Ast
+            if col.endswith("Utc"):
+                col = col[:-3] + "Ast"
+
         result[col] = value
 
     return result

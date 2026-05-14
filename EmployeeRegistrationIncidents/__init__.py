@@ -2,7 +2,8 @@ import json
 import logging
 import azure.functions as func
 
-from shared_code.iot_logic import get_sql_connection
+from shared_code.iot_logic import get_sql_connection, time
+from shared_code.time_utils import to_ast_string 
 
 
 BASE_INCIDENTS_SQL = """
@@ -126,7 +127,6 @@ SELECT
 FROM TAIoT.dbo.EmployeeRegistrationAlertQueue;
 """
 
-
 def row_to_dict(cursor, row):
     columns = [col[0] for col in cursor.description]
     result = {}
@@ -134,8 +134,13 @@ def row_to_dict(cursor, row):
     for i, col in enumerate(columns):
         value = row[i]
 
-        if hasattr(value, "isoformat"):
-            value = value.isoformat()
+        # Convert SQL datetime values from UTC to AST for API response
+        if isinstance(value, datetime.datetime):
+            value = to_ast_string(value)
+
+            # Rename returned field from Utc to Ast
+            if col.endswith("Utc"):
+                col = col[:-3] + "Ast"
 
         result[col] = value
 
