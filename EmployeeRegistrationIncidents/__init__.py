@@ -77,17 +77,7 @@ FROM (
 
         CASE
             WHEN V.IncidentLifecycleStatus = 'CLOSED' THEN 'CLOSED'
-            WHEN V.ValidationStatus = 'VALID' THEN 'RESOLVED'
-            WHEN V.ValidationStatus = 'INVALID'
-             AND ISNULL(V.EmailSent, 0) = 1 THEN 'ALERT_SENT'
-            WHEN V.ValidationStatus = 'INVALID'
-             AND Q.QueueStatus = 'PENDING' THEN 'PENDING_EMAIL'
-            WHEN V.ValidationStatus = 'INVALID'
-             AND Q.QueueStatus = 'FAILED' THEN 'EMAIL_FAILED'
-            WHEN V.ValidationStatus = 'INVALID'
-             AND Q.QueueStatus = 'PROCESSING' THEN 'PROCESSING_EMAIL'
-            WHEN V.ValidationStatus = 'INVALID' THEN 'OPEN'
-            ELSE 'UNKNOWN'
+            ELSE 'OPEN'
         END AS IncidentStatus,
 
         CASE
@@ -129,9 +119,14 @@ SELECT
     COUNT(*) AS TotalValidationRecords,
     SUM(CASE WHEN ValidationStatus = 'VALID' THEN 1 ELSE 0 END) AS ValidCount,
     SUM(CASE WHEN ValidationStatus = 'INVALID' THEN 1 ELSE 0 END) AS InvalidCount,
+    SUM(CASE WHEN ValidationStatus = 'INVALID'
+              AND ISNULL(IncidentLifecycleStatus, 'OPEN') <> 'CLOSED'
+             THEN 1 ELSE 0 END) AS OpenIncidentCount,
+    SUM(CASE WHEN ValidationStatus = 'INVALID'
+              AND IncidentLifecycleStatus = 'CLOSED'
+             THEN 1 ELSE 0 END) AS ClosedIncidentCount,
     SUM(CASE WHEN ValidationStatus = 'INVALID' AND EmailSent = 1 THEN 1 ELSE 0 END) AS InvalidEmailSentCount,
-    SUM(CASE WHEN ValidationStatus = 'INVALID' AND EmailSent = 0 THEN 1 ELSE 0 END) AS InvalidEmailNotSentCount,
-    SUM(CASE WHEN ValidationStatus = 'INVALID' AND IsResolved = 1 THEN 1 ELSE 0 END) AS ResolvedInvalidCount
+    SUM(CASE WHEN ValidationStatus = 'INVALID' AND EmailSent = 0 THEN 1 ELSE 0 END) AS InvalidEmailNotSentCount
 FROM TAIoT.dbo.EmployeeRegistrationValidation;
 """
 
@@ -211,11 +206,6 @@ def build_incident_query(req):
 
         allowed_statuses = {
             "OPEN",
-            "PENDING_EMAIL",
-            "ALERT_SENT",
-            "EMAIL_FAILED",
-            "PROCESSING_EMAIL",
-            "RESOLVED",
             "CLOSED"
         }
 
