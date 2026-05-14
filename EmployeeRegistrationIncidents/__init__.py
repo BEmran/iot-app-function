@@ -37,6 +37,16 @@ FROM (
         V.IsResolved,
         V.ResolvedUtc,
 
+        V.IncidentLifecycleStatus,
+        V.AcknowledgedBy,
+        V.AcknowledgedUtc,
+        V.ClosedBy,
+        V.ClosedUtc,
+        V.ClosureNotes,
+        V.CloseEmailSent,
+        V.CloseEmailSentUtc,
+        V.CloseEmailError,
+
         Q.QueueId,
         Q.QueueStatus,
         Q.AttemptCount,
@@ -48,18 +58,19 @@ FROM (
         Q.SentUtc AS QueueSentUtc,
 
         CASE
+            WHEN V.IncidentLifecycleStatus = 'CLOSED' THEN 'CLOSED'
             WHEN V.ValidationStatus = 'VALID' THEN 'RESOLVED'
             WHEN V.ValidationStatus = 'INVALID'
-             AND ISNULL(V.EmailSent, 0) = 1 THEN 'ALERT_SENT'
+            AND ISNULL(V.EmailSent, 0) = 1 THEN 'ALERT_SENT'
             WHEN V.ValidationStatus = 'INVALID'
-             AND Q.QueueStatus = 'PENDING' THEN 'PENDING_EMAIL'
+            AND Q.QueueStatus = 'PENDING' THEN 'PENDING_EMAIL'
             WHEN V.ValidationStatus = 'INVALID'
-             AND Q.QueueStatus = 'FAILED' THEN 'EMAIL_FAILED'
+            AND Q.QueueStatus = 'FAILED' THEN 'EMAIL_FAILED'
             WHEN V.ValidationStatus = 'INVALID'
-             AND Q.QueueStatus = 'PROCESSING' THEN 'PROCESSING_EMAIL'
+            AND Q.QueueStatus = 'PROCESSING' THEN 'PROCESSING_EMAIL'
             WHEN V.ValidationStatus = 'INVALID' THEN 'OPEN'
             ELSE 'UNKNOWN'
-        END AS IncidentStatus,
+        END AS IncidentStatus
 
         CASE
             WHEN V.FailedChecks LIKE '%more than 8 digits%'
@@ -182,7 +193,8 @@ def build_incident_query(req):
             "ALERT_SENT",
             "EMAIL_FAILED",
             "PROCESSING_EMAIL",
-            "RESOLVED"
+            "RESOLVED",
+            "CLOSED"
         }
 
         if status in allowed_statuses:
