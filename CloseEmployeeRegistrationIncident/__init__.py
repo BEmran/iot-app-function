@@ -7,8 +7,24 @@ import azure.functions as func
 
 from shared_code.iot_logic import get_sql_connection
 from shared_code.graph_email import send_graph_email
-from shared_code.time_utils import to_ast_string
 
+
+AST_TZ = datetime.timezone(datetime.timedelta(hours=3))
+def to_ast_string(value):
+    """
+    Convert SQL UTC datetime to AST string.
+    SQL datetime values are assumed to be UTC.
+    """
+    if value is None:
+        return None
+
+    if isinstance(value, datetime.datetime):
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=datetime.timezone.utc)
+
+        return value.astimezone(AST_TZ).strftime("%Y-%m-%d %H:%M:%S AST")
+
+    return value
 
 GET_INCIDENT_BY_VALIDATION_ID_SQL = """
 SELECT TOP (1)
