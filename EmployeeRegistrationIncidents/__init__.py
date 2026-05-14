@@ -1,16 +1,16 @@
 import json
 import logging
 import datetime
+
 import azure.functions as func
 
-from shared_code.iot_logic import get_sql_connection, time
+from shared_code.iot_logic import get_sql_connection
+
 
 AST_TZ = datetime.timezone(datetime.timedelta(hours=3))
+
+
 def to_ast_string(value):
-    """
-    Convert SQL UTC datetime to AST string.
-    SQL datetime values are assumed to be UTC.
-    """
     if value is None:
         return None
 
@@ -21,6 +21,7 @@ def to_ast_string(value):
         return value.astimezone(AST_TZ).strftime("%Y-%m-%d %H:%M:%S AST")
 
     return value
+
 
 BASE_INCIDENTS_SQL = """
 SELECT TOP ({limit})
@@ -92,6 +93,7 @@ FROM (
         CASE
             WHEN V.FailedChecks LIKE '%more than 8 digits%'
               OR V.FailedChecks LIKE '%exactly 8 digits%'
+              OR V.FailedChecks LIKE '%not exactly 8 digits%'
                 THEN 'length'
             WHEN V.FailedChecks LIKE '%allowed patterns%'
                 THEN 'pattern'
@@ -143,6 +145,7 @@ SELECT
 FROM TAIoT.dbo.EmployeeRegistrationAlertQueue;
 """
 
+
 def row_to_dict(cursor, row):
     columns = [col[0] for col in cursor.description]
     result = {}
@@ -150,7 +153,7 @@ def row_to_dict(cursor, row):
     for i, col in enumerate(columns):
         value = row[i]
 
-        if hasattr(value, "isoformat"):
+        if isinstance(value, datetime.datetime):
             value = to_ast_string(value)
 
             if col.endswith("Utc"):
