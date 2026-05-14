@@ -92,7 +92,7 @@ FROM (
             ELSE 'other'
         END AS ErrorType
 
-    FROM TAIoT.dbo.EmployeeRegistrationValidation AS V
+        FROM TAIoT.dbo.EmployeeRegistrationValidation AS V
     LEFT JOIN (
         SELECT
             Q1.*
@@ -119,12 +119,19 @@ SELECT
     COUNT(*) AS TotalValidationRecords,
     SUM(CASE WHEN ValidationStatus = 'VALID' THEN 1 ELSE 0 END) AS ValidCount,
     SUM(CASE WHEN ValidationStatus = 'INVALID' THEN 1 ELSE 0 END) AS InvalidCount,
-    SUM(CASE WHEN ValidationStatus = 'INVALID'
-              AND ISNULL(IncidentLifecycleStatus, 'OPEN') <> 'CLOSED'
-             THEN 1 ELSE 0 END) AS OpenIncidentCount,
-    SUM(CASE WHEN ValidationStatus = 'INVALID'
-              AND IncidentLifecycleStatus = 'CLOSED'
-             THEN 1 ELSE 0 END) AS ClosedIncidentCount,
+
+    SUM(CASE
+            WHEN ValidationStatus = 'INVALID'
+             AND ISNULL(IncidentLifecycleStatus, 'OPEN') <> 'CLOSED'
+            THEN 1 ELSE 0
+        END) AS OpenIncidentCount,
+
+    SUM(CASE
+            WHEN ValidationStatus = 'INVALID'
+             AND IncidentLifecycleStatus = 'CLOSED'
+            THEN 1 ELSE 0
+        END) AS ClosedIncidentCount,
+
     SUM(CASE WHEN ValidationStatus = 'INVALID' AND EmailSent = 1 THEN 1 ELSE 0 END) AS InvalidEmailSentCount,
     SUM(CASE WHEN ValidationStatus = 'INVALID' AND EmailSent = 0 THEN 1 ELSE 0 END) AS InvalidEmailNotSentCount
 FROM TAIoT.dbo.EmployeeRegistrationValidation;
