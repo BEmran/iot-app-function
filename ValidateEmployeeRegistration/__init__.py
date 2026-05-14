@@ -31,7 +31,7 @@ USING (
         CASE
             WHEN LEN(X.EmpId) <> 8
             OR X.EmpId LIKE '%[^0-9]%'
-                THEN 'ID is not exactly 8 digits.'
+                THEN 'ID is more than 8 digits.'
 
             WHEN X.CheckAllowedPattern = 0
                 THEN 'ID does not match allowed patterns.'
@@ -117,6 +117,9 @@ WHEN MATCHED THEN
         Target.IsResolved =
             CASE
                 WHEN Source.ValidationStatus = 'VALID'
+                THEN 0
+                WHEN Source.ValidationStatus = 'INVALID'
+                 AND Target.IncidentLifecycleStatus = 'CLOSED'
                 THEN 1
                 ELSE 0
             END,
@@ -124,9 +127,24 @@ WHEN MATCHED THEN
         Target.ResolvedUtc =
             CASE
                 WHEN Source.ValidationStatus = 'VALID'
-                 AND Target.ValidationStatus = 'INVALID'
+                THEN NULL
+                WHEN Source.ValidationStatus = 'INVALID'
+                 AND Target.IncidentLifecycleStatus = 'CLOSED'
+                 AND Target.ResolvedUtc IS NULL
                 THEN SYSUTCDATETIME()
                 ELSE Target.ResolvedUtc
+            END,
+
+        Target.IncidentLifecycleStatus =
+            CASE
+                WHEN Source.ValidationStatus = 'VALID'
+                    THEN 'NOT_APPLICABLE'
+                WHEN Source.ValidationStatus = 'INVALID'
+                AND Target.IncidentLifecycleStatus = 'CLOSED'
+                    THEN 'CLOSED'
+                WHEN Source.ValidationStatus = 'INVALID'
+                    THEN 'OPEN'
+                ELSE Target.IncidentLifecycleStatus
             END
 
 WHEN NOT MATCHED THEN
@@ -144,6 +162,7 @@ WHEN NOT MATCHED THEN
         AlertStatus,
         EmailSent,
         IsResolved,
+        IncidentLifecycleStatus,
         CreatedUtc,
         UpdatedUtc
     )
@@ -160,7 +179,11 @@ WHEN NOT MATCHED THEN
         CASE WHEN Source.ValidationStatus = 'INVALID' THEN SYSUTCDATETIME() ELSE NULL END,
         CASE WHEN Source.ValidationStatus = 'INVALID' THEN 'PENDING_EMAIL' ELSE 'NOT_REQUIRED' END,
         0,
-        CASE WHEN Source.ValidationStatus = 'VALID' THEN 1 ELSE 0 END,
+        0,
+        CASE
+            WHEN Source.ValidationStatus = 'INVALID' THEN 'OPEN'
+            ELSE 'NOT_APPLICABLE'
+        END,
         SYSUTCDATETIME(),
         SYSUTCDATETIME()
     );
