@@ -4,7 +4,7 @@ from decimal import Decimal
 from shared_code.iot_logic import get_sql_connection
 
 
-VIEW_NAME = "dbo.vw_PBI_DowntimeImpactDetail"
+VIEW_NAME = "dbo.vw_DASHBOARD_DowntimeImpactDetail"
 
 
 def serialize_value(value):
@@ -83,7 +83,7 @@ def get_downtime_impact_by_site_data(req):
     - environment: optional environment filter.
 
     Source view:
-    - dbo.vw_PBI_DowntimeImpactDetail
+    - dbo.vw_DASHBOARD_DowntimeImpactDetail
     """
 
     days = parse_int_param(
