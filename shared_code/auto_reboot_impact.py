@@ -4,7 +4,7 @@ from decimal import Decimal
 from shared_code.iot_logic import get_sql_connection
 
 
-VIEW_NAME = "dbo.vw_PBI_AutoRebootImpactDetail"
+VIEW_NAME = "dbo.vw_DASHBOARD_AutoRebootImpactDetail"
 
 
 def serialize_value(value):
@@ -114,7 +114,7 @@ def get_auto_reboot_impact_data(req):
     - limit: number of detail records to return. Default 20.
 
     Source:
-    - dbo.vw_PBI_AutoRebootImpactDetail
+    - dbo.vw_DASHBOARD_AutoRebootImpactDetail
     """
 
     days = parse_int_param(
