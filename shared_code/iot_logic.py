@@ -157,3 +157,183 @@ def parse_json_lines(content: str):
             logging.warning(f"Skipping invalid JSON line: {line}")
 
     return records
+
+def apply_status_based_recovery_rules(cursor, conn):
+    """
+    Fallback recovery logic based directly on HeartbeatEvents.
+
+    Rules:
+    1. IOT_DEVICE_DISCONNECTED recovers when any newer heartbeat arrives.
+    2. SLAVE_OFFLINE recovers when a newer heartbeat says ONLINE.
+    3. SLAVE_OFFLINE transitions/closes when a newer heartbeat says DOWN.
+    4. SLAVE_DOWN recovers when a newer heartbeat says ONLINE.
+    5. SLAVE_DOWN transitions/closes when a newer heartbeat says OFFLINE.
+
+    This prevents old open incidents from remaining open when the device state
+    has already changed but no matching RECOVER event was generated.
+    """
+
+    recovered = {
+        "iot_device_disconnected": 0,
+        "slave_offline_to_online": 0,
+        "slave_offline_to_down": 0,
+        "slave_down_to_online": 0,
+        "slave_down_to_offline": 0
+    }
+
+    # ------------------------------------------------------------
+    # Rule 1:
+    # IOT_DEVICE_DISCONNECTED closes when any newer heartbeat arrives.
+    # ------------------------------------------------------------
+    cursor.execute("""
+        UPDATE i
+        SET
+            RecoveryUtc = h.RecoveryUtc,
+            DurationSec = DATEDIFF(second, i.StartUtc, h.RecoveryUtc),
+            State = 'Recovered'
+        FROM dbo.Incidents i
+        CROSS APPLY
+        (
+            SELECT TOP 1
+                hb.DeviceUtcTs AS RecoveryUtc
+            FROM dbo.HeartbeatEvents hb
+            WHERE
+                hb.DeviceId = i.DeviceId
+                AND hb.DeviceUtcTs > i.StartUtc
+            ORDER BY hb.DeviceUtcTs ASC
+        ) h
+        WHERE
+            i.State = 'Open'
+            AND i.IncidentType = 'IOT_DEVICE_DISCONNECTED';
+    """)
+
+    recovered["iot_device_disconnected"] = cursor.rowcount
+    conn.commit()
+
+    # ------------------------------------------------------------
+    # Rule 2:
+    # SLAVE_OFFLINE closes when newer heartbeat says ONLINE.
+    # ------------------------------------------------------------
+    cursor.execute("""
+        UPDATE i
+        SET
+            RecoveryUtc = h.RecoveryUtc,
+            DurationSec = DATEDIFF(second, i.StartUtc, h.RecoveryUtc),
+            State = 'Recovered'
+        FROM dbo.Incidents i
+        CROSS APPLY
+        (
+            SELECT TOP 1
+                hb.DeviceUtcTs AS RecoveryUtc
+            FROM dbo.HeartbeatEvents hb
+            WHERE
+                hb.DeviceId = i.DeviceId
+                AND hb.DeviceUtcTs > i.StartUtc
+                AND UPPER(hb.SlaveStatus) = 'ONLINE'
+            ORDER BY hb.DeviceUtcTs ASC
+        ) h
+        WHERE
+            i.State = 'Open'
+            AND i.IncidentType = 'SLAVE_OFFLINE';
+    """)
+
+    recovered["slave_offline_to_online"] = cursor.rowcount
+    conn.commit()
+
+    # ------------------------------------------------------------
+    # Rule 3:
+    # SLAVE_OFFLINE closes when newer heartbeat says DOWN.
+    # This means the condition changed/escalated from OFFLINE to DOWN.
+    # A separate SLAVE_DOWN incident may be opened by the normal detection logic.
+    # ------------------------------------------------------------
+    cursor.execute("""
+        UPDATE i
+        SET
+            RecoveryUtc = h.RecoveryUtc,
+            DurationSec = DATEDIFF(second, i.StartUtc, h.RecoveryUtc),
+            State = 'Recovered'
+        FROM dbo.Incidents i
+        CROSS APPLY
+        (
+            SELECT TOP 1
+                hb.DeviceUtcTs AS RecoveryUtc
+            FROM dbo.HeartbeatEvents hb
+            WHERE
+                hb.DeviceId = i.DeviceId
+                AND hb.DeviceUtcTs > i.StartUtc
+                AND UPPER(hb.SlaveStatus) = 'DOWN'
+            ORDER BY hb.DeviceUtcTs ASC
+        ) h
+        WHERE
+            i.State = 'Open'
+            AND i.IncidentType = 'SLAVE_OFFLINE';
+    """)
+
+    recovered["slave_offline_to_down"] = cursor.rowcount
+    conn.commit()
+
+    # ------------------------------------------------------------
+    # Rule 4:
+    # SLAVE_DOWN closes when newer heartbeat says ONLINE.
+    # ------------------------------------------------------------
+    cursor.execute("""
+        UPDATE i
+        SET
+            RecoveryUtc = h.RecoveryUtc,
+            DurationSec = DATEDIFF(second, i.StartUtc, h.RecoveryUtc),
+            State = 'Recovered'
+        FROM dbo.Incidents i
+        CROSS APPLY
+        (
+            SELECT TOP 1
+                hb.DeviceUtcTs AS RecoveryUtc
+            FROM dbo.HeartbeatEvents hb
+            WHERE
+                hb.DeviceId = i.DeviceId
+                AND hb.DeviceUtcTs > i.StartUtc
+                AND UPPER(hb.SlaveStatus) = 'ONLINE'
+            ORDER BY hb.DeviceUtcTs ASC
+        ) h
+        WHERE
+            i.State = 'Open'
+            AND i.IncidentType = 'SLAVE_DOWN';
+    """)
+
+    recovered["slave_down_to_online"] = cursor.rowcount
+    conn.commit()
+
+    # ------------------------------------------------------------
+    # Rule 5:
+    # SLAVE_DOWN closes when newer heartbeat says OFFLINE.
+    # This means the condition changed from DOWN to OFFLINE.
+    # A separate SLAVE_OFFLINE incident may be opened by the normal detection logic.
+    # ------------------------------------------------------------
+    cursor.execute("""
+        UPDATE i
+        SET
+            RecoveryUtc = h.RecoveryUtc,
+            DurationSec = DATEDIFF(second, i.StartUtc, h.RecoveryUtc),
+            State = 'Recovered'
+        FROM dbo.Incidents i
+        CROSS APPLY
+        (
+            SELECT TOP 1
+                hb.DeviceUtcTs AS RecoveryUtc
+            FROM dbo.HeartbeatEvents hb
+            WHERE
+                hb.DeviceId = i.DeviceId
+                AND hb.DeviceUtcTs > i.StartUtc
+                AND UPPER(hb.SlaveStatus) = 'OFFLINE'
+            ORDER BY hb.DeviceUtcTs ASC
+        ) h
+        WHERE
+            i.State = 'Open'
+            AND i.IncidentType = 'SLAVE_DOWN';
+    """)
+
+    recovered["slave_down_to_offline"] = cursor.rowcount
+    conn.commit()
+
+    recovered["total_recovered_by_status_rules"] = sum(recovered.values())
+
+    return recovered

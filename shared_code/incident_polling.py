@@ -5,6 +5,7 @@ from shared_code.iot_logic import (
     get_sql_connection,
     handle_open_event,
     handle_recover_event,
+    apply_status_based_recovery_rules,
 )
 
 
@@ -61,15 +62,17 @@ def process_incident_events_once():
         rows = cursor.fetchall()
 
         if not rows:
+            status_recovery_result = apply_status_based_recovery_rules(cursor, conn)
+
             return {
                 "status": "ok",
-                "message": "No unprocessed incident events found.",
+                "message": "No unprocessed incident events found. Status-based recovery rules still executed.",
                 "processed": 0,
                 "failed": 0,
                 "skipped": 0,
+                "status_based_recovery": status_recovery_result,
                 "details": []
             }
-
         for row in rows:
             event_id = row[0]
             device_id = row[1]
@@ -187,15 +190,16 @@ def process_incident_events_once():
                     "error": error_text
                 })
 
+        status_recovery_result = apply_status_based_recovery_rules(cursor, conn)
         return {
             "status": "ok",
             "message": "Incident event polling completed.",
             "processed": processed,
             "failed": failed,
             "skipped": skipped,
+            "status_based_recovery": status_recovery_result,
             "details": details
         }
-
     finally:
         cursor.close()
         conn.close()
